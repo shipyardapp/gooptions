@@ -1,0 +1,9 @@
+package main
+
+import (
+	"reflect"
+
+	pkg_ {{ printf "%q" .Path }}
+)
+
+var ReflectTypeVar = reflect.TypeOf((*pkg_.{{.TypeName}})(nil)).Elem()
