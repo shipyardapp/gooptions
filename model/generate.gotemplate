@@ -5,7 +5,7 @@ package {{ .Package.Name }}
 type {{ .Options.OptionName }} func(*{{ .StructType.Name }})
 
 {{ with $receiverName := .StructType.Name | ReceiverName }}
-	func ({{ $.StructType.Name | ReceiverName }} *{{ $.StructType.Name }}) with(options ...{{ $.Options.OptionName }}) *{{ $.StructType.Name }} {
+	func ({{ $receiverName }} *{{ $.StructType.Name }}) with(options ...{{ $.Options.OptionName }}) *{{ $.StructType.Name }} {
 		for _, option := range options {
 			option({{ $receiverName }})
 		}
