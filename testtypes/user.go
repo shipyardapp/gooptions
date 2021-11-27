@@ -49,3 +49,10 @@ type User struct {
 }
 
 type Org struct{}
+
+func A(int uint8) bool {
+	return int == 0
+}
+
+func B(o Org) {
+}

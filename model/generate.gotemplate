@@ -2,6 +2,14 @@
 
 package {{ .Package.Name }}
 
+import (
+{{ range $epPath, $epName := .EffectivePackages -}}
+{{- if not (eq $epName "") -}}
+{{ printf "%q\n" $epPath }}
+{{- end -}}
+{{ end -}}
+)
+
 type {{ .Options.OptionName }} func(*{{ .StructType.Name }})
 
 {{ with $receiverName := .StructType.Name | ReceiverName }}
@@ -15,7 +23,7 @@ type {{ .Options.OptionName }} func(*{{ .StructType.Name }})
 
 {{ range $_, $field := .StructType.Fields }}
 	{{ with $argumentName := $field.Name | ArgumentName }}
-		func {{ $.Options.OptionPrefix }}{{ $field.Name | Title }}({{ $argumentName }} {{ $field.TypeString }}) {{ $.Options.OptionName }} {
+		func {{ $.Options.OptionPrefix }}{{ $field.Name | Title }}({{ $argumentName }} {{ $field.TypeString $.EffectivePackages }}) {{ $.Options.OptionName }} {
 			return func({{ $.StructType.Name | ReceiverName }} *{{ $.StructType.Name }}) {
 				{{ $.StructType.Name | ReceiverName }}.{{ $field.Name }} = {{ $argumentName }}
 			}

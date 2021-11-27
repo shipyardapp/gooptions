@@ -32,11 +32,11 @@ func main() {
 		exit(fmt.Errorf("failed to generate model from reflection: %v", err), 4)
 	}
 
-	modelModel := &model.Model{
-		Options:    model.NewOptions(),
-		Package:    modelPackage,
-		StructType: modelStructType,
-	}
+	modelModel := model.NewModel(
+		model.NewOptions(),
+		modelPackage,
+		modelStructType,
+	)
 
 	err = model.Generate(modelModel)
 	if err != nil {

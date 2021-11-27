@@ -40,7 +40,6 @@ func Generate(m *Model) error {
 	return nil
 }
 
-// TODO maybe fix for "byte" and "rune".
 func ArgumentName(name string) string {
 	r, size := utf8.DecodeRuneInString(name)
 	result := string(unicode.ToLower(r)) + string(name[size:])
@@ -54,7 +53,7 @@ func ReceiverName(name string) string {
 
 func SanitizeName(name string) string {
 	result := name
-	if token.IsKeyword(name) {
+	if token.IsKeyword(name) || name == "byte" || name == "rune" {
 		result = fmt.Sprintf("%s%d", name, variableNameCounter)
 		variableNameCounter++
 	}

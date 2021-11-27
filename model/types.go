@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 )
 
@@ -23,15 +22,29 @@ func init() {
 }
 
 type Type interface {
-	TypeString() string
+	TypeString(ep map[string]string) string
+
+	getImports() []*Package
 }
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
+
+var byteType = reflect.TypeOf(byte(0))
+
+var runeType = reflect.TypeOf(rune(0))
 
 type StructType struct {
 	Name string
 
 	Fields []*StructField
+}
+
+func (st *StructType) getImports() []*Package {
+	result := []*Package{}
+	for _, field := range st.Fields {
+		result = append(result, field.getImports()...)
+	}
+	return result
 }
 
 func NewStructTypeFromReflectType(rt reflect.Type) (*StructType, error) {
@@ -92,13 +105,20 @@ type TagOptions struct {
 }
 
 func NewType(rt reflect.Type) (Type, error) {
+	// Alias types.
+	if rt == byteType {
+		return PredeclaredType("byte"), nil
+	}
+	if rt == runeType {
+		return PredeclaredType("rune"), nil
+	}
+
+	// Named types.
 	if pkgPath := rt.PkgPath(); pkgPath != "" {
-		nt := &NamedType{
+		return &NamedType{
 			Package:       NewPackage(pkgPath),
 			NameInPackage: rt.Name(),
-		}
-		log.Printf("%+#v %+#v\n", *nt, *nt.Package)
-		return nt, nil
+		}, nil
 	}
 
 	// Only unnamed or predeclared types after here.
@@ -184,22 +204,44 @@ type NamedType struct {
 	NameInPackage string
 }
 
-func (nt *NamedType) TypeString() string {
-	return nt.Package.Name + "." + nt.NameInPackage
+func (nt *NamedType) TypeString(ep map[string]string) string {
+	packageName := ""
+	if nt.Package != nil {
+		packageName = ep[nt.Package.Path]
+		if packageName == "" {
+			return nt.NameInPackage
+		}
+	}
+	return packageName + "." + nt.NameInPackage
+}
+
+func (nt *NamedType) getImports() []*Package {
+	if nt.Package != nil {
+		return []*Package{nt.Package}
+	}
+	return nil
 }
 
 type PredeclaredType string
 
-func (pt PredeclaredType) TypeString() string {
+func (pt PredeclaredType) TypeString(_ map[string]string) string {
 	return string(pt)
+}
+
+func (pt PredeclaredType) getImports() []*Package {
+	return nil
 }
 
 type PointerType struct {
 	ElementType Type
 }
 
-func (pt *PointerType) TypeString() string {
-	return "*" + pt.ElementType.TypeString()
+func (pt *PointerType) TypeString(ep map[string]string) string {
+	return "*" + pt.ElementType.TypeString(ep)
+}
+
+func (pt *PointerType) getImports() []*Package {
+	return pt.ElementType.getImports()
 }
 
 type ArraySliceType struct {
@@ -207,12 +249,16 @@ type ArraySliceType struct {
 	ElementType Type
 }
 
-func (ast *ArraySliceType) TypeString() string {
+func (ast *ArraySliceType) TypeString(ep map[string]string) string {
 	var l string
 	if ast.Len > -1 {
 		l = fmt.Sprintf("%d", ast.Len)
 	}
-	return fmt.Sprintf("[%v]%v", l, ast.ElementType.TypeString())
+	return fmt.Sprintf("[%v]%v", l, ast.ElementType.TypeString(ep))
+}
+
+func (ast *ArraySliceType) getImports() []*Package {
+	return ast.ElementType.getImports()
 }
 
 type ChanType struct {
@@ -220,7 +266,7 @@ type ChanType struct {
 	ElementType Type
 }
 
-func (ct *ChanType) TypeString() string {
+func (ct *ChanType) TypeString(ep map[string]string) string {
 	chanString := "chan"
 	switch ct.ChanDir {
 	case reflect.RecvDir:
@@ -229,7 +275,11 @@ func (ct *ChanType) TypeString() string {
 		chanString += "<-"
 	}
 
-	return chanString + " " + ct.ElementType.TypeString()
+	return chanString + " " + ct.ElementType.TypeString(ep)
+}
+
+func (ct *ChanType) getImports() []*Package {
+	return ct.ElementType.getImports()
 }
 
 type MapType struct {
@@ -237,8 +287,12 @@ type MapType struct {
 	ValueType Type
 }
 
-func (mt *MapType) TypeString() string {
-	return "map[" + mt.KeyType.TypeString() + "]" + mt.ValueType.TypeString()
+func (mt *MapType) TypeString(ep map[string]string) string {
+	return "map[" + mt.KeyType.TypeString(ep) + "]" + mt.ValueType.TypeString(ep)
+}
+
+func (mt *MapType) getImports() []*Package {
+	return append(mt.KeyType.getImports(), mt.ValueType.getImports()...)
 }
 
 type FuncType struct {
@@ -294,24 +348,35 @@ func NewFuncType(rt reflect.Type) (*FuncType, error) {
 	}, nil
 }
 
-func (ft *FuncType) TypeString() string {
+func (ft *FuncType) TypeString(ep map[string]string) string {
 	b := &bytes.Buffer{}
 
 	fmt.Fprint(b, "func(")
 	if len(ft.In) >= 1 {
-		ft.In[0].Print(b)
+		ft.In[0].Print(b, ep)
 	}
 	for i := 1; i < len(ft.In); i++ {
 		fmt.Fprint(b, ", ")
-		ft.In[i].Print(b)
+		ft.In[i].Print(b, ep)
 	}
 	fmt.Fprint(b, ") (")
 	for _, out := range ft.Out {
-		out.Print(b)
+		out.Print(b, ep)
 	}
 	fmt.Fprint(b, ")")
 
 	return b.String()
+}
+
+func (ft *FuncType) getImports() []*Package {
+	result := []*Package{}
+	for _, in := range ft.In {
+		result = append(result, in.getImports()...)
+	}
+	for _, out := range ft.Out {
+		result = append(result, out.getImports()...)
+	}
+	return result
 }
 
 type Parameter struct {
@@ -320,14 +385,18 @@ type Parameter struct {
 	Variadic bool
 }
 
-func (p *Parameter) TypeString() string {
-	return p.Name + p.Type.TypeString()
+func (p *Parameter) TypeString(ep map[string]string) string {
+	return p.Name + p.Type.TypeString(ep)
 }
 
-func (p *Parameter) Print(w io.Writer) {
+func (p *Parameter) getImports() []*Package {
+	return p.Type.getImports()
+}
+
+func (p *Parameter) Print(w io.Writer, ep map[string]string) {
 	fmt.Fprint(w, p.Name+" ")
 	if p.Variadic {
 		fmt.Fprint(w, "...")
 	}
-	fmt.Fprint(w, p.Type.TypeString())
+	fmt.Fprint(w, p.Type.TypeString(ep))
 }
