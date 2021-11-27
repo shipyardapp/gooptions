@@ -40,6 +40,7 @@ func Generate(m *Model) error {
 	return nil
 }
 
+// TODO maybe fix for "byte" and "rune".
 func ArgumentName(name string) string {
 	r, size := utf8.DecodeRuneInString(name)
 	result := string(unicode.ToLower(r)) + string(name[size:])
