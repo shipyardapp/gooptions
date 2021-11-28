@@ -1,8 +1,10 @@
 package model
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
+	"go/format"
 	"go/token"
 	"os"
 	"strings"
@@ -32,8 +34,18 @@ func Generate(m *Model) error {
 		return err
 	}
 
+	b := &bytes.Buffer{}
 	templateData := m
-	if err := t.Execute(os.Stdout, templateData); err != nil {
+	if err := t.Execute(b, templateData); err != nil {
+		return err
+	}
+
+	result, err := format.Source(b.Bytes())
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stdout.Write(result); err != nil {
 		return err
 	}
 

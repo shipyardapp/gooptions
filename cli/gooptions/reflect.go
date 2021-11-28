@@ -61,8 +61,17 @@ func BuildRunReflectProgram(mp *model.Package, typeName string) (*model.StructTy
 	if err := t.Execute(variableGo, templateData); err != nil {
 		return nil, err
 	}
+	variableGoBytes := variableGo.Bytes()
 
-	return BuildRunInDirectory(variableGo.Bytes(), ".")
+	// Attempt to run in the current working directory.
+	log.Println("attempting run in", ".")
+	if result, err := BuildRunInDirectory(variableGoBytes, "."); err == nil {
+		return result, nil
+	}
+
+	// Attempt to run in a normal, temporary directory.
+	log.Println("attempting run in", "")
+	return BuildRunInDirectory(variableGoBytes, "")
 }
 
 func BuildRunInDirectory(variableGo []byte, dir string) (*model.StructType, error) {
@@ -70,11 +79,11 @@ func BuildRunInDirectory(variableGo []byte, dir string) (*model.StructType, erro
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := os.RemoveAll(mainDir); err != nil {
-			log.Printf("failed to remove temp directory: %v", mainDir)
-		}
-	}()
+	// defer func() {
+	// 	if err := os.RemoveAll(mainDir); err != nil {
+	// 		log.Printf("failed to remove temp directory: %v", mainDir)
+	// 	}
+	// }()
 
 	programName := "modelreflect.bin"
 	programBinary := filepath.Join(mainDir, programName)
