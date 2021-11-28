@@ -19,14 +19,14 @@ func NewOptions() *Options {
 	}
 }
 
-func (o *Options) OutputFile(typeName, cwd, destinationPath string) (string, error) {
+func (o *Options) OutputFile(typeName, sourceDir, destinationPath string) (string, error) {
 	// TODO detect already exists.
 
 	if destinationPath == "" {
 		destinationPath = strings.ToLower(typeName + "_options.go")
 	}
 	if !filepath.IsAbs(destinationPath) {
-		destinationPath = filepath.Join(cwd, destinationPath)
+		destinationPath = filepath.Join(sourceDir, destinationPath)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destinationPath), 0777); err != nil {

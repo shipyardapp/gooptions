@@ -38,7 +38,7 @@ func main() {
 		modelStructType,
 	)
 
-	err = model.Generate(modelModel, f.Type, cwd, f.DestinationPath)
+	err = model.Generate(modelModel, f.Type, sourceDir, f.DestinationPath)
 	if err != nil {
 		exit(err, 5)
 	}
