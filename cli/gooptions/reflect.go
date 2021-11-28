@@ -64,12 +64,7 @@ func BuildRunReflectProgram(mp *model.Package, typeName string) (*model.StructTy
 	variableGoBytes := variableGo.Bytes()
 
 	// Attempt to run in the current working directory.
-	if result, err := BuildRunInDirectory(variableGoBytes, "."); err == nil {
-		return result, nil
-	}
-
-	// Attempt to run in a normal, temporary directory.
-	return BuildRunInDirectory(variableGoBytes, "")
+	return BuildRunInDirectory(variableGoBytes, ".")
 }
 
 func BuildRunInDirectory(variableGo []byte, dir string) (*model.StructType, error) {

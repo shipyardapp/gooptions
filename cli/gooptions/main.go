@@ -20,7 +20,7 @@ func main() {
 		exit(fmt.Errorf("failed to get cwd: %v", err), 2)
 	}
 
-	sourceDir := filepath.Join(cwd, f.Source)
+	sourceDir := filepath.Join(cwd, f.SourceDir)
 
 	modelPackage, err := NewModelPackageReflect(cwd, sourceDir)
 	if err != nil {
@@ -38,27 +38,30 @@ func main() {
 		modelStructType,
 	)
 
-	err = model.Generate(modelModel)
+	err = model.Generate(modelModel, f.Type, cwd, f.DestinationPath)
 	if err != nil {
 		exit(err, 5)
 	}
 }
 
 type Flags struct {
-	Source string
-	Type   string
+	SourceDir       string
+	Type            string
+	DestinationPath string
 }
 
 func NewFlags(args []string) (*Flags, error) {
 	f := &Flags{
-		Source: ".",
-		Type:   "",
+		SourceDir:       ".",
+		Type:            "",
+		DestinationPath: "",
 	}
 
 	fs := flag.NewFlagSet("gooptions", flag.ExitOnError)
 
-	fs.StringVar(&f.Source, "source", f.Source, "source package to generate options for types in the package")
+	fs.StringVar(&f.SourceDir, "source", f.SourceDir, "source package to generate options for types in the package")
 	fs.StringVar(&f.Type, "type", f.Type, "name of struct type to generate options for")
+	fs.StringVar(&f.DestinationPath, "dest", "", `destination file path to write options file to (default: empty value means "<os.Getwd()>/<strings.ToLower(type)>_options.go")`)
 
 	err := fs.Parse(args)
 	if err != nil {

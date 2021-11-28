@@ -4,9 +4,10 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"go/format"
 	"go/token"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 	"unicode"
@@ -18,7 +19,7 @@ var variableNameCounter = 0
 //go:embed generate.gotemplate
 var GenerateTemplate string
 
-func Generate(m *Model) error {
+func Generate(m *Model, typeName string, cwd, destinationPath string) error {
 	t := template.New("generator")
 	t = t.Funcs(
 		map[string]interface{}{
@@ -40,16 +41,32 @@ func Generate(m *Model) error {
 		return err
 	}
 
-	result, err := format.Source(b.Bytes())
+	destinationPath, err = m.Options.OutputFile(typeName, cwd, destinationPath)
+	if err != nil {
+		return err
+	}
+	outputFile, err := os.Create(destinationPath)
 	if err != nil {
 		return err
 	}
 
-	if _, err := os.Stdout.Write(result); err != nil {
+	if err := WriteAndFormatOutputFile(b.Bytes(), outputFile); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func WriteAndFormatOutputFile(contents []byte, f *os.File) error {
+	if _, err := io.Copy(f, bytes.NewReader(contents)); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("gofmt", "-w", f.Name())
+	return cmd.Run()
 }
 
 func ArgumentName(name string) string {
