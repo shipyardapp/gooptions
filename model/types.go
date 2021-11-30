@@ -352,17 +352,9 @@ func (ft *FuncType) TypeString(ep map[string]string) string {
 	b := &bytes.Buffer{}
 
 	fmt.Fprint(b, "func(")
-	if len(ft.In) >= 1 {
-		ft.In[0].Print(b, ep)
-	}
-	for i := 1; i < len(ft.In); i++ {
-		fmt.Fprint(b, ", ")
-		ft.In[i].Print(b, ep)
-	}
+	PrintParameters(ft.In, b, ep)
 	fmt.Fprint(b, ") (")
-	for _, out := range ft.Out {
-		out.Print(b, ep)
-	}
+	PrintParameters(ft.Out, b, ep)
 	fmt.Fprint(b, ")")
 
 	return b.String()
@@ -380,13 +372,13 @@ func (ft *FuncType) getImports() []*Package {
 }
 
 type Parameter struct {
-	Name     string // Can be empty.
+	// TODO add Name string field for ast mode.
 	Type     Type
 	Variadic bool
 }
 
 func (p *Parameter) TypeString(ep map[string]string) string {
-	return p.Name + p.Type.TypeString(ep)
+	return p.Type.TypeString(ep)
 }
 
 func (p *Parameter) getImports() []*Package {
@@ -394,9 +386,18 @@ func (p *Parameter) getImports() []*Package {
 }
 
 func (p *Parameter) Print(w io.Writer, ep map[string]string) {
-	fmt.Fprint(w, p.Name+" ")
 	if p.Variadic {
 		fmt.Fprint(w, "...")
 	}
 	fmt.Fprint(w, p.Type.TypeString(ep))
+}
+
+func PrintParameters(ps []*Parameter, w io.Writer, ep map[string]string) {
+	if len(ps) >= 1 {
+		ps[0].Print(w, ep)
+	}
+	for i := 1; i < len(ps); i++ {
+		fmt.Fprint(w, ", ")
+		ps[i].Print(w, ep)
+	}
 }
